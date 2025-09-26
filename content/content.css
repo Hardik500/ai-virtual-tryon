@@ -1,0 +1,198 @@
+/* Content script styles for AI Virtual Try-On extension */
+
+.vto-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 999999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.vto-overlay.hidden {
+  display: none;
+}
+
+.vto-instructions {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  max-width: 400px;
+  margin: 20px;
+}
+
+.vto-instruction-text h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.vto-instruction-text p {
+  margin: 0 0 25px 0;
+  color: #666;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.vto-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.vto-buttons button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#vto-screenshot-btn {
+  background: #007bff;
+  color: white;
+}
+
+#vto-screenshot-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+#vto-cancel-btn {
+  background: #6c757d;
+  color: white;
+}
+
+#vto-cancel-btn:hover {
+  background: #545b62;
+  transform: translateY(-1px);
+}
+
+/* Selectable image styles */
+img.vto-selectable {
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  border: 2px solid transparent !important;
+}
+
+img.vto-selectable:hover {
+  border-color: #007bff !important;
+  box-shadow: 0 0 10px rgba(0, 123, 255, 0.3) !important;
+  transform: scale(1.02) !important;
+}
+
+img.vto-selected {
+  border-color: #28a745 !important;
+  box-shadow: 0 0 15px rgba(40, 167, 69, 0.5) !important;
+}
+
+/* Try-on result overlay (placeholder) */
+.vto-result-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 1000000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.vto-result-container {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 90%;
+  max-height: 90%;
+  overflow: auto;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Loading spinner */
+.vto-loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: vto-spin 1s linear infinite;
+}
+
+@keyframes vto-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Notification styles */
+.vto-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #28a745;
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  z-index: 1000001;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  max-width: 300px;
+  animation: vto-slide-in 0.3s ease;
+}
+
+.vto-notification.error {
+  background: #dc3545;
+}
+
+.vto-notification.warning {
+  background: #ffc107;
+  color: #333;
+}
+
+@keyframes vto-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .vto-instructions {
+    margin: 10px;
+    padding: 20px;
+  }
+  
+  .vto-instruction-text h3 {
+    font-size: 20px;
+  }
+  
+  .vto-instruction-text p {
+    font-size: 14px;
+  }
+  
+  .vto-buttons {
+    flex-direction: column;
+  }
+  
+  .vto-buttons button {
+    width: 100%;
+  }
+}

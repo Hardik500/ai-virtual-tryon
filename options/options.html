@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Virtual Try-On - Setup</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <!-- Header -->
+    <header class="options-header">
+      <div class="header-content">
+        <div class="logo">
+          <img src="../assets/icons/icon48.png" alt="AI Virtual Try-On" class="logo-icon">
+          <div class="logo-text">
+            <h1>AI Virtual Try-On</h1>
+            <p>Complete your profile setup</p>
+          </div>
+        </div>
+        <div class="progress-indicator">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <span class="progress-text" id="progress-text">0% Complete</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="options-main">
+      <!-- Step 1: API Configuration -->
+      <section class="setup-section" id="api-section">
+        <div class="section-header">
+          <div class="step-number">1</div>
+          <div class="step-info">
+            <h2>API Configuration</h2>
+            <p>Configure your Google Gemini API key for AI processing</p>
+          </div>
+        </div>
+        
+        <div class="section-content">
+          <div class="form-group">
+            <label for="gemini-api-key">Google Gemini API Key</label>
+            <div class="input-group">
+              <input type="password" id="gemini-api-key" placeholder="Enter your Gemini API key">
+              <button type="button" id="toggle-api-key" class="toggle-btn">Show</button>
+            </div>
+            <small class="help-text">
+              Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>. 
+              Your key is stored locally and never shared.
+            </small>
+          </div>
+          
+          <div class="form-group">
+            <button id="test-api-btn" class="btn secondary" disabled>Test API Connection</button>
+            <div id="api-status" class="status-message"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 2: Profile Photos -->
+      <section class="setup-section" id="photos-section">
+        <div class="section-header">
+          <div class="step-number">2</div>
+          <div class="step-info">
+            <h2>Profile Photos</h2>
+            <p>Upload photos of yourself for accurate try-on generation</p>
+          </div>
+        </div>
+        
+        <div class="section-content">
+          <div class="photo-upload-area">
+            <div class="upload-zone" id="photo-upload-zone">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              <h3>Upload Your Photos</h3>
+              <p>Drag and drop photos here or click to browse</p>
+              <button type="button" class="btn primary">Choose Photos</button>
+              <input type="file" id="photo-input" multiple accept="image/*" hidden>
+            </div>
+          </div>
+          
+          <div class="photo-guidelines">
+            <h4>Photo Guidelines:</h4>
+            <ul>
+              <li>Upload 2-5 clear, well-lit photos</li>
+              <li>Include full body shots from different angles</li>
+              <li>Wear form-fitting clothes to show your body shape</li>
+              <li>Avoid busy backgrounds</li>
+              <li>Face should be clearly visible in at least one photo</li>
+            </ul>
+          </div>
+          
+          <div class="uploaded-photos" id="uploaded-photos">
+            <!-- Uploaded photos will appear here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 3: Body Measurements -->
+      <section class="setup-section" id="measurements-section">
+        <div class="section-header">
+          <div class="step-number">3</div>
+          <div class="step-info">
+            <h2>Body Measurements</h2>
+            <p>Provide your measurements for accurate fitting (optional but recommended)</p>
+          </div>
+        </div>
+        
+        <div class="section-content">
+          <div class="measurements-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="height">Height</label>
+                <div class="input-with-unit">
+                  <input type="number" id="height" placeholder="170">
+                  <select id="height-unit">
+                    <option value="cm">cm</option>
+                    <option value="ft">ft</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="weight">Weight</label>
+                <div class="input-with-unit">
+                  <input type="number" id="weight" placeholder="70">
+                  <select id="weight-unit">
+                    <option value="kg">kg</option>
+                    <option value="lbs">lbs</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="chest">Chest/Bust</label>
+                <div class="input-with-unit">
+                  <input type="number" id="chest" placeholder="90">
+                  <span class="unit">cm</span>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="waist">Waist</label>
+                <div class="input-with-unit">
+                  <input type="number" id="waist" placeholder="75">
+                  <span class="unit">cm</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="hips">Hips</label>
+                <div class="input-with-unit">
+                  <input type="number" id="hips" placeholder="95">
+                  <span class="unit">cm</span>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="shoe-size">Shoe Size</label>
+                <div class="input-with-unit">
+                  <input type="number" id="shoe-size" placeholder="42">
+                  <select id="shoe-size-unit">
+                    <option value="eu">EU</option>
+                    <option value="us">US</option>
+                    <option value="uk">UK</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 4: Preferences -->
+      <section class="setup-section" id="preferences-section">
+        <div class="section-header">
+          <div class="step-number">4</div>
+          <div class="step-info">
+            <h2>Preferences</h2>
+            <p>Customize your try-on experience</p>
+          </div>
+        </div>
+        
+        <div class="section-content">
+          <div class="preferences-form">
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="auto-detect-clothing">
+                <span class="checkmark"></span>
+                Automatically detect clothing items in screenshots
+              </label>
+            </div>
+            
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="save-try-ons" checked>
+                <span class="checkmark"></span>
+                Save try-on results for later viewing
+              </label>
+            </div>
+            
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="high-quality-processing">
+                <span class="checkmark"></span>
+                Use high-quality processing (slower but better results)
+              </label>
+            </div>
+            
+            <div class="form-group">
+              <label for="default-category">Default clothing category</label>
+              <select id="default-category">
+                <option value="auto">Auto-detect</option>
+                <option value="tops">Tops</option>
+                <option value="bottoms">Bottoms</option>
+                <option value="dresses">Dresses</option>
+                <option value="shoes">Shoes</option>
+                <option value="accessories">Accessories</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="options-footer">
+      <div class="footer-content">
+        <div class="privacy-notice">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>All data is stored locally in your browser and never shared</span>
+        </div>
+        
+        <div class="footer-actions">
+          <button id="reset-btn" class="btn secondary">Reset All Data</button>
+          <button id="save-btn" class="btn primary" disabled>Complete Setup</button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="../lib/storage-manager.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
