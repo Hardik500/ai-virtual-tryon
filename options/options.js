@@ -16,6 +16,16 @@ class VirtualTryOnOptions {
   }
 
   async init() {
+    // Wait for storage manager to be ready
+    if (window.storageManagerReady) {
+      try {
+        await window.storageManagerReady;
+        console.log('Storage manager is ready');
+      } catch (error) {
+        console.error('Storage manager failed to initialize:', error);
+      }
+    }
+
     await this.loadExistingData();
     this.setupEventListeners();
     this.updateUI();
@@ -25,14 +35,27 @@ class VirtualTryOnOptions {
   // Load existing user data
   async loadExistingData() {
     try {
-      if (window.storageManager) {
+      if (window.storageManager && window.storageManager.db) {
         const profile = await window.storageManager.getUserProfile();
         if (profile) {
           this.userProfile = { ...this.userProfile, ...profile };
         }
-        
+
         const photos = await window.storageManager.getUserPhotos();
         this.uploadedPhotos = photos || [];
+        console.log('Loaded photos from storage:', this.uploadedPhotos.length);
+      } else {
+        console.warn('Storage manager not available or not initialized');
+        // Try to load from localStorage as fallback
+        const savedPhotos = localStorage.getItem('vto-photos');
+        if (savedPhotos) {
+          try {
+            this.uploadedPhotos = JSON.parse(savedPhotos);
+            console.log('Loaded photos from localStorage fallback:', this.uploadedPhotos.length);
+          } catch (e) {
+            console.error('Failed to parse saved photos from localStorage:', e);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to load existing data:', error);
@@ -81,6 +104,14 @@ class VirtualTryOnOptions {
       e.preventDefault();
       uploadZone.classList.remove('dragover');
       this.handlePhotoUpload(e.dataTransfer.files);
+    });
+
+    // Photo removal (event delegation)
+    document.getElementById('uploaded-photos').addEventListener('click', (e) => {
+      if (e.target.classList.contains('photo-remove')) {
+        const index = parseInt(e.target.dataset.photoIndex);
+        this.removePhoto(index);
+      }
     });
 
     // Measurements section
@@ -203,12 +234,22 @@ class VirtualTryOnOptions {
       try {
         const photoData = await this.processPhotoFile(file);
         
-        if (window.storageManager) {
+        if (window.storageManager && window.storageManager.db) {
           const photoId = await window.storageManager.saveUserPhoto(photoData);
           photoData.id = photoId;
+        } else {
+          // Fallback to localStorage
+          photoData.id = Date.now().toString();
         }
-        
+
         this.uploadedPhotos.push(photoData);
+
+        // Save to localStorage as backup
+        try {
+          localStorage.setItem('vto-photos', JSON.stringify(this.uploadedPhotos));
+        } catch (e) {
+          console.warn('Failed to save photos to localStorage:', e);
+        }
       } catch (error) {
         console.error('Failed to process photo:', error);
         alert(`Failed to process ${file.name}`);
@@ -245,7 +286,8 @@ class VirtualTryOnOptions {
   // Update photo display
   updatePhotoDisplay() {
     const container = document.getElementById('uploaded-photos');
-    
+    console.log('Updating photo display. Photos count:', this.uploadedPhotos.length);
+
     if (this.uploadedPhotos.length === 0) {
       container.innerHTML = '';
       return;
@@ -254,7 +296,7 @@ class VirtualTryOnOptions {
     container.innerHTML = this.uploadedPhotos.map((photo, index) => `
       <div class="photo-item">
         <img src="${photo.data}" alt="${photo.filename}">
-        <button class="photo-remove" onclick="virtualTryOnOptions.removePhoto(${index})">&times;</button>
+        <button class="photo-remove" data-photo-index="${index}">&times;</button>
       </div>
     `).join('');
   }
@@ -272,6 +314,14 @@ class VirtualTryOnOptions {
     }
     
     this.uploadedPhotos.splice(index, 1);
+
+    // Update localStorage backup
+    try {
+      localStorage.setItem('vto-photos', JSON.stringify(this.uploadedPhotos));
+    } catch (e) {
+      console.warn('Failed to update photos in localStorage:', e);
+    }
+
     this.updatePhotoDisplay();
     this.validateStep(2);
   }
@@ -357,13 +407,17 @@ class VirtualTryOnOptions {
   // Update progress
   updateProgress() {
     const completedSteps = this.getCompletedSteps();
-    const progress = (completedSteps / this.totalSteps) * 100;
+    const requiredSteps = 2; // API key and photos are required
+    const totalPossibleSteps = this.totalSteps;
+
+    // Calculate progress based on completed steps out of total possible
+    const progress = (completedSteps / totalPossibleSteps) * 100;
 
     document.getElementById('progress-fill').style.width = `${progress}%`;
     document.getElementById('progress-text').textContent = `${Math.round(progress)}% Complete`;
 
     // Enable save button if all required steps are complete
-    const canComplete = completedSteps >= 2; // API key and at least one photo
+    const canComplete = this.userProfile.apiKey.length > 10 && this.uploadedPhotos.length >= 1;
     document.getElementById('save-btn').disabled = !canComplete;
 
     // Update section active states
@@ -381,12 +435,30 @@ class VirtualTryOnOptions {
   getCompletedSteps() {
     let completed = 0;
 
+    // Step 1: API Key (required)
     if (this.userProfile.apiKey.length > 10) completed++;
-    if (this.uploadedPhotos.length >= 1) completed++;
-    completed++; // Measurements (optional)
-    completed++; // Preferences (always valid)
 
-    return Math.min(completed, this.totalSteps);
+    // Step 2: Photos (required - at least 1 photo)
+    if (this.uploadedPhotos.length >= 1) completed++;
+
+    // Step 3: Measurements (optional - only count if user has entered any)
+    const hasMeasurements = this.userProfile.measurements && (
+      this.userProfile.measurements.height?.value ||
+      this.userProfile.measurements.weight?.value ||
+      this.userProfile.measurements.chest ||
+      this.userProfile.measurements.waist ||
+      this.userProfile.measurements.hips ||
+      this.userProfile.measurements.shoeSize?.value
+    );
+    if (hasMeasurements) completed++;
+
+    // Step 4: Preferences (optional - only count if user has made changes)
+    // For now, we'll count this as complete since it has defaults
+    const hasPreferences = this.userProfile.preferences &&
+      Object.keys(this.userProfile.preferences).length > 0;
+    if (hasPreferences) completed++;
+
+    return completed;
   }
 
   // Show status message
@@ -514,4 +586,3 @@ let virtualTryOnOptions;
 document.addEventListener('DOMContentLoaded', () => {
   virtualTryOnOptions = new VirtualTryOnOptions();
 });
-}

@@ -82,12 +82,28 @@
 
 ## Troubleshooting
 
+### Installation Errors
+
+#### Service Worker Registration Failed (Status code: 15)
+This is a common error during installation. Try these solutions:
+1. **Refresh the extension**: Go to `chrome://extensions/` and click the refresh icon
+2. **Remove and reload**: Remove the extension and load it again
+3. **Check file structure**: Ensure all files are in the correct locations
+4. **Restart Chrome**: Close and reopen Chrome browser
+
+#### Context Menu Errors
+If you see "Cannot read properties of undefined (reading 'onClicked')":
+1. The extension will still work - this is a non-critical error
+2. Right-click context menu on images may not work initially
+3. Use the main extension popup instead
+
 ### Common Issues
 
 #### Extension Not Loading
 - Ensure you selected the correct folder (containing manifest.json)
 - Check that Developer mode is enabled
 - Try refreshing the extensions page
+- **If still failing**: See TROUBLESHOOTING.md for detailed solutions
 
 #### API Connection Failed
 - Verify your Gemini API key is correct

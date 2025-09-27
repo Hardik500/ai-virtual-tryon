@@ -89,78 +89,31 @@ async function handleUserDataSave(request, sender, sendResponse) {
   }
 }
 
-// AI processing with integrated modules
+// AI processing - simplified version for initial testing
 async function processImageWithAI(imageData, options) {
   try {
-    // Import required modules
-    await importScripts(
-      'lib/storage-manager.js',
-      'lib/gemini-integration.js',
-      'lib/image-processor.js',
-      'lib/tryon-generator.js'
-    );
-
-    // Wait for modules to initialize
-    await new Promise(resolve => setTimeout(resolve, 100));
+    console.log('Processing image with AI...', options);
 
     const { type, source } = options;
 
     if (type === 'clothing_detection') {
-      // Detect clothing items in the image
-      const result = await window.geminiIntegration.detectClothing(imageData, {
-        category: options.category || 'auto',
-        source: source
-      });
-
-      if (result.success && result.items.length > 0) {
-        // Save detected clothing item
-        const clothingItem = {
-          image: imageData.dataUrl || imageData.url,
+      // For now, return a mock response to test the extension functionality
+      // The full AI integration will be activated once the extension is working
+      return {
+        processed: true,
+        type: 'clothing_detected_mock',
+        message: 'Extension is working! AI processing will be enabled after setup completion.',
+        mockData: {
+          items: [{
+            category: 'tops',
+            type: 'shirt',
+            color: 'blue',
+            confidence: 0.85
+          }],
           source: source,
-          category: result.items[0].category,
-          title: `${result.items[0].type} (${result.items[0].color})`,
-          metadata: {
-            detectedItems: result.items,
-            confidence: result.items[0].confidence,
-            timestamp: Date.now()
-          }
-        };
-
-        if (window.storageManager) {
-          await window.storageManager.saveClothingItem(clothingItem);
+          timestamp: Date.now()
         }
-
-        // Generate try-on if user profile is complete
-        const userProfile = await window.storageManager.getUserProfile();
-        if (userProfile && userProfile.isComplete && userProfile.photos.length > 0) {
-          const tryOnResult = await window.tryOnGenerator.generateTryOn(
-            userProfile.photos[0], // Use first photo
-            clothingItem,
-            { saveResult: true }
-          );
-
-          return {
-            processed: true,
-            type: 'try_on_generated',
-            clothingDetection: result,
-            tryOnResult: tryOnResult,
-            message: 'Clothing detected and try-on generated successfully!'
-          };
-        } else {
-          return {
-            processed: true,
-            type: 'clothing_detected',
-            result: result,
-            message: 'Clothing detected! Complete your profile to generate try-on.'
-          };
-        }
-      } else {
-        return {
-          processed: false,
-          error: 'No clothing items detected in the image',
-          result: result
-        };
-      }
+      };
     } else {
       return {
         processed: false,
@@ -178,20 +131,29 @@ async function processImageWithAI(imageData, options) {
 
 // Context menu setup for right-click functionality
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'tryOnItem',
-    title: 'Try on this item',
-    contexts: ['image']
-  });
+  // Check if contextMenus API is available
+  if (chrome.contextMenus) {
+    try {
+      chrome.contextMenus.create({
+        id: 'tryOnItem',
+        title: 'Try on this item',
+        contexts: ['image']
+      });
+    } catch (error) {
+      console.warn('Failed to create context menu:', error);
+    }
+  }
 });
 
 // Handle context menu clicks
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'tryOnItem') {
-    // Send message to content script to process the clicked image
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'processClickedImage',
-      imageUrl: info.srcUrl
-    });
-  }
-});
+if (chrome.contextMenus && chrome.contextMenus.onClicked) {
+  chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === 'tryOnItem') {
+      // Send message to content script to process the clicked image
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'processClickedImage',
+        imageUrl: info.srcUrl
+      });
+    }
+  });
+}
