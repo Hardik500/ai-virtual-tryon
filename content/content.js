@@ -152,13 +152,17 @@ class VirtualTryOnContent {
 
   // Process selected image element
   async processImageElement(imgElement) {
+    console.log('processImageElement called with:', imgElement);
+
     // Show loading indicator
     this.showLoadingIndicator('Processing selected item...');
 
     try {
       const imageData = await this.extractImageData(imgElement);
+      console.log('Extracted image data:', imageData);
 
       // Send to background script for AI processing
+      console.log('Sending message to background script...');
       const response = await chrome.runtime.sendMessage({
         action: 'processImage',
         imageData: imageData,
@@ -167,14 +171,29 @@ class VirtualTryOnContent {
           source: 'element_selection'
         }
       });
+      console.log('Background script response:', response);
 
       // Hide loading indicator
       this.hideLoadingIndicator();
 
-      if (response.success) {
+      console.log('Received response from background:', response);
+
+      if (response && response.success) {
+        console.log('Showing try-on result:', response.result);
         this.showTryOnResult(response.result);
+
+        // Also send results to popup if it's open
+        try {
+          chrome.runtime.sendMessage({
+            action: 'updatePopupResults',
+            result: response.result
+          });
+        } catch (error) {
+          console.debug('Could not send results to popup (popup may be closed)');
+        }
       } else {
-        this.showError('Failed to process image: ' + response.error);
+        console.log('Processing failed:', response);
+        this.showError('Failed to process image: ' + (response?.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Image processing error:', error);
@@ -290,15 +309,41 @@ class VirtualTryOnContent {
 
   // Show try-on result
   showTryOnResult(result) {
-    console.log('Try-on result:', result);
+    console.log('showTryOnResult called with:', result);
 
     // Create a visual notification overlay
-    this.showSuccessNotification(result);
+    try {
+      this.showSuccessNotification(result);
+      console.log('Success notification created');
+    } catch (error) {
+      console.error('Error creating success notification:', error);
+    }
 
-    // Also show alert as fallback
-    if (result.message) {
+    // Show detailed alert with results
+    if (result) {
+      const items = result.aiData?.items || result.mockData?.items || [];
+      const processingMethod = result.aiData?.processingMethod || result.mockData?.processingMethod || 'unknown';
+      const isAI = processingMethod.includes('gemini');
+
+      let alertMessage = result.message || 'Processing complete!';
+
+      if (items.length > 0) {
+        alertMessage += `\n\nDetected ${items.length} item(s):`;
+        items.forEach((item, index) => {
+          alertMessage += `\n${index + 1}. ${item.type || 'Item'} (${item.color || 'unknown'})`;
+          alertMessage += ` - ${Math.round((item.confidence || 0) * 100)}% confidence`;
+        });
+      }
+
+      alertMessage += `\n\nProcessing: ${isAI ? '🤖 AI Analysis' : '🔧 Mock Detection'}`;
+
       setTimeout(() => {
-        alert(result.message);
+        alert(alertMessage);
+      }, 500);
+    } else {
+      // Fallback alert
+      setTimeout(() => {
+        alert('Try-on processing complete! Check the console for details.');
       }, 500);
     }
   }
@@ -311,16 +356,35 @@ class VirtualTryOnContent {
       existingNotification.remove();
     }
 
+    // Get data from either AI results or mock data
+    const items = result.aiData?.items || result.mockData?.items || [];
+    const processingMethod = result.aiData?.processingMethod || result.mockData?.processingMethod || 'unknown';
+    const isAI = processingMethod.includes('gemini');
+    const methodIcon = isAI ? '🤖' : '🔧';
+
+    // Build items summary
+    let itemsSummary = '';
+    if (items.length > 0) {
+      const firstItem = items[0];
+      if (items.length === 1) {
+        itemsSummary = `Found: ${firstItem.type || 'item'} (${firstItem.color || 'unknown color'})`;
+      } else {
+        itemsSummary = `Found ${items.length} items: ${firstItem.type || 'item'} and ${items.length - 1} more`;
+      }
+    } else {
+      itemsSummary = 'No clothing items detected';
+    }
+
     // Create notification element
     const notification = document.createElement('div');
     notification.className = 'vto-success-notification';
     notification.innerHTML = `
       <div class="vto-notification-content">
-        <div class="vto-notification-icon">✅</div>
+        <div class="vto-notification-icon">${isAI ? '🤖' : '✅'}</div>
         <div class="vto-notification-text">
-          <h3>Try-On Processing Complete!</h3>
+          <h3>${isAI ? 'AI Analysis Complete!' : 'Processing Complete!'}</h3>
           <p>${result.message || 'Image processed successfully'}</p>
-          ${result.mockData ? `<small>Found: ${result.mockData.items[0]?.type || 'clothing item'}</small>` : ''}
+          <small>${methodIcon} ${itemsSummary}</small>
         </div>
         <button class="vto-notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
       </div>

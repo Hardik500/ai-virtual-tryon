@@ -182,6 +182,86 @@ body {
   color: white;
 }
 
+/* Latest Results */
+.latest-results {
+  margin-bottom: 24px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 4px solid #28a745;
+}
+
+.latest-results h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.latest-results h2::before {
+  content: "✅";
+  font-size: 18px;
+}
+
+.results-content {
+  background: white;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.result-item {
+  margin-bottom: 8px;
+}
+
+.result-item:last-child {
+  margin-bottom: 0;
+}
+
+.result-label {
+  font-weight: 600;
+  color: #333;
+}
+
+.result-value {
+  color: #666;
+  margin-left: 8px;
+}
+
+.detected-items {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.detected-item {
+  background: #e8f5e8;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.detected-item:last-child {
+  margin-bottom: 0;
+}
+
+.item-type {
+  font-weight: 600;
+  color: #155724;
+}
+
+.item-details {
+  color: #155724;
+  opacity: 0.8;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
 /* Recent Try-ons */
 .recent-tryons h2 {
   font-size: 16px;
@@ -408,4 +488,43 @@ body {
 
 .recent-list::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Notifications */
+.vto-notification {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 10000;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  animation: slideInRight 0.3s ease-out;
+}
+
+.vto-notification.success {
+  background: #28a745;
+}
+
+.vto-notification.error {
+  background: #dc3545;
+}
+
+.vto-notification.info {
+  background: #007bff;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }

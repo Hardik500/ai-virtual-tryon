@@ -10,8 +10,20 @@ class VirtualTryOnPopup {
   async init() {
     await this.loadUserData();
     this.setupEventListeners();
+    this.setupMessageListener();
     this.updateUI();
     await this.checkContentScriptStatus();
+  }
+
+  // Setup message listener for results from content script
+  setupMessageListener() {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'updatePopupResults') {
+        console.log('Received results from content script:', request.result);
+        this.displayResultsInPopup(request.result);
+        sendResponse({ success: true });
+      }
+    });
   }
 
   // Load user data from storage
@@ -22,11 +34,17 @@ class VirtualTryOnPopup {
       this.recentTryOns = result.recentTryOns || [];
 
       // Clean up any external URLs in recent try-ons to prevent CSP violations
-      this.recentTryOns = this.recentTryOns.filter(item => {
-        return !item.thumbnail ||
-               item.thumbnail.startsWith('data:') ||
-               item.thumbnail.startsWith('blob:') ||
-               !item.thumbnail.startsWith('http');
+      // Also fix any broken thumbnails
+      this.recentTryOns = this.recentTryOns.map(item => {
+        if (!item.thumbnail ||
+            item.thumbnail.startsWith('http') ||
+            item.thumbnail.includes('PHN2ZyB3aWR0aD0i')) { // Fix broken base64
+          return {
+            ...item,
+            thumbnail: 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L12 15"/></svg>'
+          };
+        }
+        return item;
       });
 
       // Save cleaned data back to storage
@@ -373,18 +391,28 @@ class VirtualTryOnPopup {
       });
       
       if (response.success) {
-        this.showNotification('Image processed successfully!', 'success');
+        console.log('URL processing successful:', response.result);
+
+        // Show detailed results
+        this.showProcessingResults(response.result);
         this.hideUrlModal();
-        
-        // Add to recent try-ons (placeholder)
+
+        // Add to recent try-ons with better info
+        const detectedItems = response.result.aiData?.items || response.result.mockData?.items || [];
+        const firstItem = detectedItems[0];
+        const processingMethod = response.result.aiData?.processingMethod || response.result.mockData?.processingMethod || 'unknown';
+
         this.addRecentTryOn({
           id: Date.now().toString(),
-          title: 'URL Try-on',
-          thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMSI+PHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMiIgcnk9IjIiLz48Y2lyY2xlIGN4PSI4LjUiIGN5PSI4LjUiIHI9IjEuNSIvPjxwYXRoIGQ9Im0yMSAxNS0zLjA4Ni0zLjA4NmEyIDIgMCAwIDAtMi44MjggMEwxMiAxNSIvPjwvc3ZnPg==',
-          timestamp: Date.now()
+          title: firstItem ? `${firstItem.type} (${firstItem.color})` : 'URL Try-on',
+          thumbnail: 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L12 15"/></svg>',
+          timestamp: Date.now(),
+          result: response.result,
+          processingMethod: processingMethod
         });
       } else {
-        this.showNotification('Failed to process image: ' + response.error, 'error');
+        console.log('URL processing failed:', response);
+        this.showNotification('Failed to process image: ' + (response?.error || 'Unknown error'), 'error');
       }
     } catch (error) {
       console.error('URL processing error:', error);
@@ -491,15 +519,126 @@ class VirtualTryOnPopup {
     const notification = document.createElement('div');
     notification.className = `vto-notification ${type}`;
     notification.textContent = message;
-    
+
     document.body.appendChild(notification);
-    
+
     // Remove after 3 seconds
     setTimeout(() => {
       if (notification.parentNode) {
         notification.parentNode.removeChild(notification);
       }
     }, 3000);
+  }
+
+  // Show detailed processing results
+  showProcessingResults(result) {
+    console.log('Showing processing results:', result);
+
+    // Show results in the dedicated popup section
+    this.displayResultsInPopup(result);
+
+    // Also show a success notification
+    this.showNotification('Image processed successfully! Check results below.', 'success');
+  }
+
+  // Display results in the popup's results section
+  displayResultsInPopup(result) {
+    const resultsSection = document.getElementById('latest-results');
+    const resultsContent = document.getElementById('results-content');
+
+    if (!resultsSection || !resultsContent) {
+      console.error('Results section not found in popup');
+      return;
+    }
+
+    // Get data from either AI results or mock data
+    const aiData = result.aiData;
+    const mockData = result.mockData;
+    const items = aiData?.items || mockData?.items || [];
+    const processingMethod = aiData?.processingMethod || mockData?.processingMethod || 'unknown';
+    const source = aiData?.source || mockData?.source || 'unknown';
+
+    // Build results HTML
+    let html = '';
+
+    // Processing method indicator
+    const isAI = processingMethod.includes('gemini');
+    const isMock = processingMethod.includes('mock');
+    const methodIcon = isAI ? '🤖' : (isMock ? '🔧' : '⚙️');
+    const methodText = isAI ? 'AI Analysis' : (isMock ? 'Mock Detection' : 'Processing');
+
+    html += `<div class="result-item">
+      <span class="result-label">${methodIcon} Method:</span>
+      <span class="result-value">${methodText}</span>
+    </div>`;
+
+    // Main message
+    if (result.message) {
+      html += `<div class="result-item">
+        <span class="result-label">Status:</span>
+        <span class="result-value">${result.message}</span>
+      </div>`;
+    }
+
+    // Source and timestamp
+    html += `<div class="result-item">
+      <span class="result-label">Source:</span>
+      <span class="result-value">${source}</span>
+    </div>`;
+
+    html += `<div class="result-item">
+      <span class="result-label">Processed:</span>
+      <span class="result-value">${new Date().toLocaleTimeString()}</span>
+    </div>`;
+
+    // Detected items
+    if (items && items.length > 0) {
+      html += `<div class="detected-items">
+        <div class="result-label">Detected Items (${items.length}):</div>`;
+
+      items.forEach((item, index) => {
+        const confidence = Math.round((item.confidence || 0) * 100);
+        const features = item.features ? ` • Features: ${item.features.join(', ')}` : '';
+        const note = item.note ? ` • ${item.note}` : '';
+
+        html += `<div class="detected-item">
+          <div class="item-type">${item.type || 'Item'} (${item.color || 'unknown color'})</div>
+          <div class="item-details">
+            Category: ${item.category || 'unknown'} •
+            Confidence: ${confidence}%${features}${note}
+          </div>
+        </div>`;
+      });
+
+      html += `</div>`;
+    } else {
+      html += `<div class="detected-items">
+        <div class="result-label">No clothing items detected</div>
+      </div>`;
+    }
+
+    // Add metadata if available (from AI analysis)
+    if (aiData?.metadata) {
+      const metadata = aiData.metadata;
+      if (metadata.background || metadata.lighting || metadata.quality) {
+        html += `<div class="result-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e9ecef;">
+          <span class="result-label">📊 Image Analysis:</span>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">`;
+
+        if (metadata.background) html += `Background: ${metadata.background}<br>`;
+        if (metadata.lighting) html += `Lighting: ${metadata.lighting}<br>`;
+        if (metadata.quality) html += `Quality: ${metadata.quality}`;
+
+        html += `</div></div>`;
+      }
+    }
+
+    // Update the content and show the section
+    resultsContent.innerHTML = html;
+    resultsSection.style.display = 'block';
+
+    // Scroll to results
+    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   // Show help

@@ -174,7 +174,7 @@ class VirtualTryOnOptions {
     const apiKey = document.getElementById('gemini-api-key').value.trim();
     const statusDiv = document.getElementById('api-status');
     const testBtn = document.getElementById('test-api-btn');
-    
+
     if (!apiKey) {
       this.showStatus('api-status', 'Please enter an API key first', 'error');
       return;
@@ -182,32 +182,61 @@ class VirtualTryOnOptions {
 
     testBtn.disabled = true;
     testBtn.textContent = 'Testing...';
-    
+
     try {
-      // Test API connection (placeholder - will be implemented with actual Gemini integration)
-      await this.simulateApiTest(apiKey);
-      
-      this.showStatus('api-status', 'API connection successful!', 'success');
+      // Test API connection with real Gemini integration
+      await this.testRealApiConnection(apiKey);
+
+      this.showStatus('api-status', '✅ API connection successful! AI processing is now enabled.', 'success');
       this.validateStep(1);
     } catch (error) {
-      this.showStatus('api-status', 'API connection failed: ' + error.message, 'error');
+      this.showStatus('api-status', `❌ API connection failed: ${error.message}`, 'error');
     } finally {
       testBtn.disabled = false;
       testBtn.textContent = 'Test API Connection';
     }
   }
 
-  // Simulate API test (placeholder)
-  async simulateApiTest(apiKey) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (apiKey.length > 10) {
-          resolve();
-        } else {
-          reject(new Error('Invalid API key format'));
-        }
-      }, 1500);
+  // Test real API connection using direct API call
+  async testRealApiConnection(apiKey) {
+    try {
+      // Use direct API test since service workers don't support the integration class
+      return await this.testApiDirectly(apiKey);
+    } catch (error) {
+      console.error('API test failed:', error);
+      throw error;
+    }
+  }
+
+  // Direct API test as fallback
+  async testApiDirectly(apiKey) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: "Hello, this is a test to verify the API key is working. Please respond with 'API test successful'."
+          }]
+        }]
+      })
     });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('No response from API');
+    }
+
+    return true;
   }
 
   // Handle photo upload
