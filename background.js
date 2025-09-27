@@ -1,5 +1,10 @@
 // Background service worker for AI Virtual Try-On extension
 
+// Import required modules for virtual try-on functionality (order matters)
+importScripts('lib/storage-manager.js');
+importScripts('lib/gemini-integration.js');
+importScripts('lib/tryon-generator.js');
+
 // Extension installation and setup
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
@@ -23,7 +28,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'saveUserData':
       handleUserDataSave(request, sender, sendResponse);
       return true;
-      
+
+    case 'generateTryOn':
+      handleTryOnGeneration(request, sender, sendResponse);
+      return true;
+
     default:
       console.log('Unknown action:', request.action);
   }
@@ -54,18 +63,98 @@ async function handleScreenshotCapture(request, sender, sendResponse) {
 // Image processing coordination
 async function handleImageProcessing(request, sender, sendResponse) {
   try {
-    // This will coordinate with the AI processing modules
-    const result = await processImageWithAI(request.imageData, request.options);
-    
-    sendResponse({ 
-      success: true, 
-      result: result 
+    console.log('🔍 Starting image processing...', request.options);
+
+    // First, detect clothing items
+    const detectionResult = await processImageWithAI(request.imageData, request.options);
+
+    // Check if we should proceed to virtual try-on
+    const shouldTryOn = request.options?.autoTryOn !== false &&
+                       detectionResult.type === 'clothing_detection' &&
+                       detectionResult.aiData?.items?.length > 0;
+
+    if (shouldTryOn) {
+      console.log('🎯 Proceeding to virtual try-on generation...');
+
+      try {
+        // Initialize try-on generator
+        const tryOnGenerator = new TryOnGenerator();
+
+        // Get best user photo
+        const bestPhoto = await tryOnGenerator.getBestUserPhoto();
+        if (!bestPhoto) {
+          console.log('⚠️ No user photos available - returning detection only');
+          sendResponse({
+            success: true,
+            result: {
+              ...detectionResult,
+              message: detectionResult.message + ' (Add photos in Settings to enable virtual try-on)'
+            }
+          });
+          return;
+        }
+
+        // Convert detection results to clothing items for try-on
+        const clothingItems = detectionResult.aiData.items.map(item => ({
+          category: item.category || 'clothing',
+          description: item.description || item.name,
+          confidence: item.confidence,
+          data: request.imageData.url || request.imageData.dataUrl || request.imageData.base64,
+          source: request.options.source || 'web',
+          url: request.imageData.url
+        }));
+
+        // Generate try-on for the first detected item
+        const tryOnResult = await tryOnGenerator.generateTryOn(bestPhoto.id, clothingItems[0], {
+          saveResult: true,
+          createThumbnail: true,
+          source: request.options.source || 'auto_tryon'
+        });
+
+        if (tryOnResult.success) {
+          console.log('✅ Virtual try-on generated successfully!');
+
+          // Return combined detection + try-on result
+          sendResponse({
+            success: true,
+            result: {
+              type: 'virtual_tryon_complete',
+              message: `Virtual try-on generated! Found ${clothingItems.length} item(s) and created try-on result.`,
+              detectionData: detectionResult,
+              tryOnData: {
+                id: tryOnResult.result.id,
+                description: tryOnResult.result.description,
+                recommendations: tryOnResult.result.recommendations,
+                confidence: tryOnResult.result.confidence,
+                thumbnail: tryOnResult.result.thumbnail,
+                processingMethod: tryOnResult.result.processingMethod
+              },
+              clothingItems: clothingItems,
+              userPhotoId: bestPhoto.id
+            }
+          });
+          return;
+        } else {
+          console.log('⚠️ Try-on generation failed, returning detection only');
+        }
+
+      } catch (tryOnError) {
+        console.error('Try-on generation failed:', tryOnError);
+        // Continue with detection-only result
+      }
+    }
+
+    // Return detection-only result
+    sendResponse({
+      success: true,
+      result: detectionResult
     });
+
   } catch (error) {
     console.error('Image processing failed:', error);
-    sendResponse({ 
-      success: false, 
-      error: error.message 
+    sendResponse({
+      success: false,
+      error: error.message
     });
   }
 }
@@ -365,6 +454,80 @@ chrome.runtime.onInstalled.addListener(() => {
     }
   }
 });
+
+// Handle virtual try-on generation
+async function handleTryOnGeneration(request, sender, sendResponse) {
+  try {
+    console.log('🎯 Starting virtual try-on generation...', request);
+
+    const { clothingItems, userPhotoId, options = {} } = request;
+
+    if (!clothingItems || clothingItems.length === 0) {
+      throw new Error('No clothing items provided for try-on');
+    }
+
+    // Initialize try-on generator
+    const tryOnGenerator = new TryOnGenerator();
+
+    // If no specific user photo provided, get the best available one
+    let photoId = userPhotoId;
+    if (!photoId) {
+      const bestPhoto = await tryOnGenerator.getBestUserPhoto();
+      if (!bestPhoto) {
+        throw new Error('No user photos available. Please add photos in Settings.');
+      }
+      photoId = bestPhoto.id;
+    }
+
+    console.log('📸 Using user photo ID:', photoId);
+    console.log('👕 Processing clothing items:', clothingItems.length);
+
+    // Generate try-on for the first clothing item (can be extended for batch processing)
+    const clothingItem = clothingItems[0];
+    const tryOnResult = await tryOnGenerator.generateTryOn(photoId, clothingItem, {
+      ...options,
+      saveResult: true, // Always save try-on results
+      createThumbnail: true,
+      source: 'extension_popup'
+    });
+
+    if (tryOnResult.success) {
+      console.log('✅ Try-on generation successful:', tryOnResult.result);
+
+      // Format result for popup display
+      const formattedResult = {
+        type: 'virtual_tryon',
+        success: true,
+        message: `Virtual try-on generated successfully!`,
+        tryOnData: {
+          id: tryOnResult.result.id,
+          description: tryOnResult.result.description,
+          recommendations: tryOnResult.result.recommendations,
+          confidence: tryOnResult.result.confidence,
+          qualityScore: tryOnResult.result.qualityScore,
+          thumbnail: tryOnResult.result.thumbnail,
+          processingMethod: tryOnResult.result.processingMethod,
+          timestamp: tryOnResult.result.timestamp
+        },
+        clothingItem: clothingItem,
+        userPhotoId: photoId,
+        metadata: tryOnResult.metadata
+      };
+
+      sendResponse(formattedResult);
+    } else {
+      throw new Error(tryOnResult.error || 'Try-on generation failed');
+    }
+
+  } catch (error) {
+    console.error('❌ Try-on generation failed:', error);
+    sendResponse({
+      success: false,
+      error: error.message,
+      type: 'virtual_tryon_error'
+    });
+  }
+}
 
 // Handle context menu clicks
 if (chrome.contextMenus && chrome.contextMenus.onClicked) {

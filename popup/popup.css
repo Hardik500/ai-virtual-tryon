@@ -528,3 +528,135 @@ body {
     opacity: 1;
   }
 }
+
+/* Virtual Try-On Results Styles */
+.tryon-header {
+  text-align: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+}
+
+.tryon-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.tryon-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tryon-subtitle {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.tryon-result {
+  text-align: center;
+  margin: 16px 0;
+}
+
+.tryon-image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.tryon-details {
+  margin: 16px 0;
+}
+
+.tryon-description {
+  margin: 12px 0;
+  padding: 12px;
+  background: #e3f2fd;
+  border-radius: 6px;
+  border-left: 3px solid #2196f3;
+}
+
+.description-text {
+  font-size: 12px;
+  color: #1565c0;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.tryon-recommendations {
+  margin: 12px 0;
+  padding: 12px;
+  background: #f3e5f5;
+  border-radius: 6px;
+  border-left: 3px solid #9c27b0;
+}
+
+.recommendations-list {
+  margin: 4px 0 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #6a1b9a;
+}
+
+.recommendations-list li {
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.clothing-item-details {
+  margin: 12px 0;
+  padding: 12px;
+  background: #fff3e0;
+  border-radius: 6px;
+  border-left: 3px solid #ff9800;
+}
+
+.item-info {
+  font-size: 12px;
+  color: #e65100;
+  margin-top: 4px;
+}
+
+.item-info div {
+  margin-bottom: 2px;
+}
+
+.tryon-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn.primary {
+  background: #007bff;
+  color: white;
+}
+
+.action-btn.primary:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.action-btn.secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.action-btn.secondary:hover {
+  background: #545b62;
+  transform: translateY(-1px);
+}

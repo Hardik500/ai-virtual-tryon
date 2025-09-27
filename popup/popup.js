@@ -551,7 +551,13 @@ class VirtualTryOnPopup {
       return;
     }
 
-    // Get data from either AI results or mock data
+    // Check if this is a virtual try-on result
+    if (result.type === 'virtual_tryon_complete' && result.tryOnData) {
+      this.displayTryOnResults(result, resultsSection, resultsContent);
+      return;
+    }
+
+    // Get data from either AI results or mock data (for detection-only results)
     const aiData = result.aiData;
     const mockData = result.mockData;
     const items = aiData?.items || mockData?.items || [];
@@ -639,6 +645,137 @@ class VirtualTryOnPopup {
 
     // Scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Display virtual try-on results
+  displayTryOnResults(result, resultsSection, resultsContent) {
+    console.log('🎯 Displaying virtual try-on results:', result);
+
+    const tryOnData = result.tryOnData;
+    const clothingItems = result.clothingItems || [];
+    const detectionData = result.detectionData;
+
+    // Build try-on results HTML
+    let html = '';
+
+    // Try-on success header
+    html += `<div class="tryon-header">
+      <div class="tryon-icon">🎉</div>
+      <div class="tryon-title">Virtual Try-On Complete!</div>
+      <div class="tryon-subtitle">${result.message}</div>
+    </div>`;
+
+    // Try-on result display
+    if (tryOnData.thumbnail) {
+      html += `<div class="tryon-result">
+        <div class="tryon-image">
+          <img src="${tryOnData.thumbnail}" alt="Try-on result" style="max-width: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        </div>
+      </div>`;
+    }
+
+    // Try-on details
+    html += `<div class="tryon-details">
+      <div class="result-item">
+        <span class="result-label">🤖 Method:</span>
+        <span class="result-value">${tryOnData.processingMethod || 'AI Generation'}</span>
+      </div>
+
+      <div class="result-item">
+        <span class="result-label">📊 Quality Score:</span>
+        <span class="result-value">${Math.round((tryOnData.qualityScore || 0.8) * 100)}%</span>
+      </div>
+
+      <div class="result-item">
+        <span class="result-label">🎯 Confidence:</span>
+        <span class="result-value">${Math.round((tryOnData.confidence || 0.8) * 100)}%</span>
+      </div>
+
+      <div class="result-item">
+        <span class="result-label">⏰ Generated:</span>
+        <span class="result-value">${new Date(tryOnData.timestamp).toLocaleTimeString()}</span>
+      </div>
+    </div>`;
+
+    // AI Description
+    if (tryOnData.description) {
+      html += `<div class="tryon-description">
+        <div class="result-label">💬 AI Analysis:</div>
+        <div class="description-text">${tryOnData.description}</div>
+      </div>`;
+    }
+
+    // Recommendations
+    if (tryOnData.recommendations && tryOnData.recommendations.length > 0) {
+      html += `<div class="tryon-recommendations">
+        <div class="result-label">💡 Recommendations:</div>
+        <ul class="recommendations-list">`;
+
+      tryOnData.recommendations.forEach(rec => {
+        html += `<li>${rec}</li>`;
+      });
+
+      html += `</ul></div>`;
+    }
+
+    // Clothing item details
+    if (clothingItems.length > 0) {
+      const item = clothingItems[0];
+      html += `<div class="clothing-item-details">
+        <div class="result-label">👕 Clothing Item:</div>
+        <div class="item-info">
+          <div>Category: ${item.category || 'Unknown'}</div>
+          <div>Description: ${item.description || 'No description'}</div>
+          <div>Source: ${item.source || 'Web'}</div>
+        </div>
+      </div>`;
+    }
+
+    // Action buttons
+    html += `<div class="tryon-actions">
+      <button class="action-btn primary" onclick="window.virtualTryOnPopup.viewTryOnHistory()">
+        📚 View History
+      </button>
+      <button class="action-btn secondary" onclick="window.virtualTryOnPopup.shareTryOn('${tryOnData.id}')">
+        📤 Share Result
+      </button>
+    </div>`;
+
+    // Update the content and show the section
+    resultsContent.innerHTML = html;
+    resultsSection.style.display = 'block';
+
+    // Add try-on to recent history
+    this.addRecentTryOn({
+      id: tryOnData.id,
+      thumbnail: tryOnData.thumbnail,
+      category: clothingItems[0]?.category || 'clothing',
+      timestamp: tryOnData.timestamp,
+      description: tryOnData.description,
+      confidence: tryOnData.confidence
+    });
+
+    // Scroll to results
+    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // View try-on history
+  viewTryOnHistory() {
+    // Switch to recent try-ons tab
+    const recentTab = document.querySelector('[data-tab="recent"]');
+    if (recentTab) {
+      recentTab.click();
+    }
+  }
+
+  // Share try-on result
+  shareTryOn(tryOnId) {
+    // For now, just copy the ID to clipboard
+    navigator.clipboard.writeText(tryOnId).then(() => {
+      this.showNotification('Try-on ID copied to clipboard!', 'success');
+    }).catch(() => {
+      this.showNotification('Failed to copy try-on ID', 'error');
+    });
   }
 
   // Show help
