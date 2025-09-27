@@ -11,6 +11,7 @@ class VirtualTryOnPopup {
     await this.loadUserData();
     this.setupEventListeners();
     this.updateUI();
+    await this.checkContentScriptStatus();
   }
 
   // Load user data from storage
@@ -19,6 +20,19 @@ class VirtualTryOnPopup {
       const result = await chrome.storage.local.get(['userProfile', 'recentTryOns']);
       this.userProfile = result.userProfile || null;
       this.recentTryOns = result.recentTryOns || [];
+
+      // Clean up any external URLs in recent try-ons to prevent CSP violations
+      this.recentTryOns = this.recentTryOns.filter(item => {
+        return !item.thumbnail ||
+               item.thumbnail.startsWith('data:') ||
+               item.thumbnail.startsWith('blob:') ||
+               !item.thumbnail.startsWith('http');
+      });
+
+      // Save cleaned data back to storage
+      if (result.recentTryOns && result.recentTryOns.length !== this.recentTryOns.length) {
+        await chrome.storage.local.set({ recentTryOns: this.recentTryOns });
+      }
     } catch (error) {
       console.error('Failed to load user data:', error);
     }
@@ -158,13 +172,80 @@ class VirtualTryOnPopup {
   async startSelection() {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
-      await chrome.tabs.sendMessage(tab.id, {
-        action: 'startSelection'
-      });
-      
-      // Close popup to allow user to interact with page
-      window.close();
+
+      // Check if we can access the tab
+      if (!tab || !tab.id) {
+        throw new Error('No active tab found');
+      }
+
+      // Check if the tab URL is accessible
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('moz-extension://')) {
+        this.showNotification('Cannot use extension on browser pages. Please navigate to a website.', 'error');
+        return;
+      }
+
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          action: 'startSelection'
+        });
+
+        // Close popup to allow user to interact with page
+        window.close();
+      } catch (messageError) {
+        // Content script might not be injected yet, try to inject it
+        console.log('Content script not responding, attempting to inject...');
+
+        try {
+          // Check if we have scripting permission for this tab
+          if (!chrome.scripting) {
+            throw new Error('Scripting API not available');
+          }
+
+          // Try to inject the content script
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content/content.js']
+          });
+
+          if (results && results.length > 0) {
+            console.log('Content script injected successfully');
+
+            // Also inject CSS
+            await chrome.scripting.insertCSS({
+              target: { tabId: tab.id },
+              files: ['content/content.css']
+            });
+
+            // Wait a moment for the script to initialize
+            setTimeout(async () => {
+              try {
+                await chrome.tabs.sendMessage(tab.id, {
+                  action: 'startSelection'
+                });
+                window.close();
+              } catch (retryError) {
+                console.error('Failed to start selection after injection:', retryError);
+                this.showNotification('Extension initialized but failed to start selection. Please try again.', 'error');
+              }
+            }, 1000);
+          } else {
+            throw new Error('Script injection returned no results');
+          }
+
+        } catch (injectionError) {
+          console.error('Failed to inject content script:', injectionError);
+
+          // Provide more specific error messages
+          if (injectionError.message.includes('Cannot access')) {
+            this.showNotification('Cannot access this page. Please refresh the page and try again.', 'error');
+          } else if (injectionError.message.includes('scripting')) {
+            this.showNotification('Extension permissions issue. Please reload the extension.', 'error');
+          } else {
+            this.showNotification('This page cannot be accessed by the extension. Try a different website.', 'error');
+          }
+        }
+      }
+
     } catch (error) {
       console.error('Failed to start selection:', error);
       this.showNotification('Failed to start selection mode', 'error');
@@ -175,13 +256,80 @@ class VirtualTryOnPopup {
   async takeScreenshot() {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
-      await chrome.tabs.sendMessage(tab.id, {
-        action: 'captureScreenshot'
-      });
-      
-      // Close popup
-      window.close();
+
+      // Check if we can access the tab
+      if (!tab || !tab.id) {
+        throw new Error('No active tab found');
+      }
+
+      // Check if the tab URL is accessible
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('moz-extension://')) {
+        this.showNotification('Cannot use extension on browser pages. Please navigate to a website.', 'error');
+        return;
+      }
+
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          action: 'captureScreenshot'
+        });
+
+        // Close popup
+        window.close();
+      } catch (messageError) {
+        // Content script might not be injected yet, try to inject it
+        console.log('Content script not responding for screenshot, attempting to inject...');
+
+        try {
+          // Check if we have scripting permission for this tab
+          if (!chrome.scripting) {
+            throw new Error('Scripting API not available');
+          }
+
+          // Try to inject the content script
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content/content.js']
+          });
+
+          if (results && results.length > 0) {
+            console.log('Content script injected successfully for screenshot');
+
+            // Also inject CSS
+            await chrome.scripting.insertCSS({
+              target: { tabId: tab.id },
+              files: ['content/content.css']
+            });
+
+            // Wait a moment for the script to initialize
+            setTimeout(async () => {
+              try {
+                await chrome.tabs.sendMessage(tab.id, {
+                  action: 'captureScreenshot'
+                });
+                window.close();
+              } catch (retryError) {
+                console.error('Failed to take screenshot after injection:', retryError);
+                this.showNotification('Extension initialized but failed to capture screenshot. Please try again.', 'error');
+              }
+            }, 1000);
+          } else {
+            throw new Error('Script injection returned no results');
+          }
+
+        } catch (injectionError) {
+          console.error('Failed to inject content script for screenshot:', injectionError);
+
+          // Provide more specific error messages
+          if (injectionError.message.includes('Cannot access')) {
+            this.showNotification('Cannot access this page. Please refresh the page and try again.', 'error');
+          } else if (injectionError.message.includes('scripting')) {
+            this.showNotification('Extension permissions issue. Please reload the extension.', 'error');
+          } else {
+            this.showNotification('This page cannot be accessed by the extension. Try a different website.', 'error');
+          }
+        }
+      }
+
     } catch (error) {
       console.error('Failed to take screenshot:', error);
       this.showNotification('Failed to capture screenshot', 'error');
@@ -232,7 +380,7 @@ class VirtualTryOnPopup {
         this.addRecentTryOn({
           id: Date.now().toString(),
           title: 'URL Try-on',
-          thumbnail: imageUrl,
+          thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMSI+PHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMiIgcnk9IjIiLz48Y2lyY2xlIGN4PSI4LjUiIGN5PSI4LjUiIHI9IjEuNSIvPjxwYXRoIGQ9Im0yMSAxNS0zLjA4Ni0zLjA4NmEyIDIgMCAwIDAtMi44MjggMEwxMiAxNSIvPjwvc3ZnPg==',
           timestamp: Date.now()
         });
       } else {
@@ -259,6 +407,82 @@ class VirtualTryOnPopup {
     });
     
     this.updateRecentTryOns();
+  }
+
+  // Check if content script is available on current tab
+  async checkContentScriptStatus() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      if (!tab || !tab.id) {
+        return false;
+      }
+
+      // Skip browser pages
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('moz-extension://')) {
+        return false;
+      }
+
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+        if (response && response.success) {
+          console.debug('Content script is ready on current tab');
+          return true;
+        }
+      } catch (error) {
+        console.debug('Content script not responding, will inject when needed');
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Failed to check content script status:', error);
+      return false;
+    }
+  }
+
+  // Inject content script if needed
+  async ensureContentScript(tabId) {
+    try {
+      // First try to ping the existing content script
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+        if (response && response.success) {
+          return true; // Content script is already working
+        }
+      } catch (pingError) {
+        // Content script not responding, need to inject
+      }
+
+      // Inject the content script
+      if (!chrome.scripting) {
+        throw new Error('Scripting API not available');
+      }
+
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content/content.js']
+      });
+
+      if (results && results.length > 0) {
+        // Also inject CSS
+        await chrome.scripting.insertCSS({
+          target: { tabId: tabId },
+          files: ['content/content.css']
+        });
+
+        // Wait for initialization
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Verify it's working
+        const response = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+        return response && response.success;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Failed to ensure content script:', error);
+      return false;
+    }
   }
 
   // Show notification

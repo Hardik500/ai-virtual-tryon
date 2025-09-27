@@ -13,6 +13,9 @@ class VirtualTryOnContent {
     this.createSelectionOverlay();
     this.setupMessageListener();
     this.setupKeyboardShortcuts();
+
+    // Signal that content script is ready
+    console.log('AI Virtual Try-On content script initialized');
   }
 
   // Create overlay for image selection
@@ -65,7 +68,11 @@ class VirtualTryOnContent {
           this.captureScreenshot();
           sendResponse({ success: true });
           break;
-          
+
+        case 'ping':
+          sendResponse({ success: true, message: 'Content script is ready' });
+          break;
+
         default:
           console.log('Unknown content script action:', request.action);
       }
@@ -145,9 +152,12 @@ class VirtualTryOnContent {
 
   // Process selected image element
   async processImageElement(imgElement) {
+    // Show loading indicator
+    this.showLoadingIndicator('Processing selected item...');
+
     try {
       const imageData = await this.extractImageData(imgElement);
-      
+
       // Send to background script for AI processing
       const response = await chrome.runtime.sendMessage({
         action: 'processImage',
@@ -157,7 +167,10 @@ class VirtualTryOnContent {
           source: 'element_selection'
         }
       });
-      
+
+      // Hide loading indicator
+      this.hideLoadingIndicator();
+
       if (response.success) {
         this.showTryOnResult(response.result);
       } else {
@@ -165,14 +178,18 @@ class VirtualTryOnContent {
       }
     } catch (error) {
       console.error('Image processing error:', error);
+      this.hideLoadingIndicator();
       this.showError('Failed to process selected image');
     }
-    
+
     this.exitSelectionMode();
   }
 
   // Process image from URL (context menu)
   async processImageUrl(imageUrl) {
+    // Show loading indicator
+    this.showLoadingIndicator('Processing image from URL...');
+
     try {
       const response = await chrome.runtime.sendMessage({
         action: 'processImage',
@@ -182,7 +199,10 @@ class VirtualTryOnContent {
           source: 'context_menu'
         }
       });
-      
+
+      // Hide loading indicator
+      this.hideLoadingIndicator();
+
       if (response.success) {
         this.showTryOnResult(response.result);
       } else {
@@ -190,6 +210,7 @@ class VirtualTryOnContent {
       }
     } catch (error) {
       console.error('Image URL processing error:', error);
+      this.hideLoadingIndicator();
       this.showError('Failed to process image from URL');
     }
   }
@@ -227,11 +248,14 @@ class VirtualTryOnContent {
 
   // Capture screenshot of current page
   async captureScreenshot() {
+    // Show loading indicator
+    this.showLoadingIndicator('Capturing and processing screenshot...');
+
     try {
       const response = await chrome.runtime.sendMessage({
         action: 'captureScreenshot'
       });
-      
+
       if (response.success) {
         // Process the screenshot for clothing detection
         const processResponse = await chrome.runtime.sendMessage({
@@ -242,34 +266,292 @@ class VirtualTryOnContent {
             source: 'screenshot'
           }
         });
-        
+
+        // Hide loading indicator
+        this.hideLoadingIndicator();
+
         if (processResponse.success) {
           this.showTryOnResult(processResponse.result);
         } else {
           this.showError('Failed to process screenshot: ' + processResponse.error);
         }
       } else {
+        this.hideLoadingIndicator();
         this.showError('Failed to capture screenshot: ' + response.error);
       }
     } catch (error) {
       console.error('Screenshot capture error:', error);
+      this.hideLoadingIndicator();
       this.showError('Failed to capture screenshot');
     }
-    
+
     this.exitSelectionMode();
   }
 
-  // Show try-on result (placeholder)
+  // Show try-on result
   showTryOnResult(result) {
-    // This will be implemented with proper UI in later phases
     console.log('Try-on result:', result);
-    alert('Try-on processing complete! (Result will be shown in popup)');
+
+    // Create a visual notification overlay
+    this.showSuccessNotification(result);
+
+    // Also show alert as fallback
+    if (result.message) {
+      setTimeout(() => {
+        alert(result.message);
+      }, 500);
+    }
+  }
+
+  // Show success notification overlay
+  showSuccessNotification(result) {
+    // Remove any existing notifications
+    const existingNotification = document.querySelector('.vto-success-notification');
+    if (existingNotification) {
+      existingNotification.remove();
+    }
+
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'vto-success-notification';
+    notification.innerHTML = `
+      <div class="vto-notification-content">
+        <div class="vto-notification-icon">✅</div>
+        <div class="vto-notification-text">
+          <h3>Try-On Processing Complete!</h3>
+          <p>${result.message || 'Image processed successfully'}</p>
+          ${result.mockData ? `<small>Found: ${result.mockData.items[0]?.type || 'clothing item'}</small>` : ''}
+        </div>
+        <button class="vto-notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+      </div>
+    `;
+
+    // Add styles
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #4CAF50;
+      color: white;
+      padding: 0;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 10001;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 350px;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    // Add animation styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      .vto-notification-content {
+        display: flex;
+        align-items: center;
+        padding: 16px;
+        gap: 12px;
+      }
+      .vto-notification-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+      }
+      .vto-notification-text h3 {
+        margin: 0 0 4px 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .vto-notification-text p {
+        margin: 0 0 4px 0;
+        font-size: 14px;
+        opacity: 0.9;
+      }
+      .vto-notification-text small {
+        font-size: 12px;
+        opacity: 0.8;
+      }
+      .vto-notification-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .vto-notification-close:hover {
+        background: rgba(255,255,255,0.2);
+      }
+    `;
+
+    document.head.appendChild(style);
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideIn 0.3s ease-out reverse';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 300);
+      }
+    }, 5000);
   }
 
   // Show error message
   showError(message) {
     console.error('VTO Error:', message);
-    alert('Error: ' + message);
+
+    // Create a visual error notification
+    this.showErrorNotification(message);
+
+    // Also show alert as fallback
+    setTimeout(() => {
+      alert('Error: ' + message);
+    }, 500);
+  }
+
+  // Show error notification overlay
+  showErrorNotification(message) {
+    // Remove any existing notifications
+    const existingNotification = document.querySelector('.vto-error-notification');
+    if (existingNotification) {
+      existingNotification.remove();
+    }
+
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'vto-error-notification';
+    notification.innerHTML = `
+      <div class="vto-notification-content">
+        <div class="vto-notification-icon">❌</div>
+        <div class="vto-notification-text">
+          <h3>Processing Failed</h3>
+          <p>${message}</p>
+        </div>
+        <button class="vto-notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+      </div>
+    `;
+
+    // Add styles
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #f44336;
+      color: white;
+      padding: 0;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 10001;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 350px;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideIn 0.3s ease-out reverse';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 300);
+      }
+    }, 4000);
+  }
+
+  // Show loading indicator
+  showLoadingIndicator(message = 'Processing...') {
+    // Remove any existing loading indicator
+    this.hideLoadingIndicator();
+
+    const loader = document.createElement('div');
+    loader.id = 'vto-loading-indicator';
+    loader.innerHTML = `
+      <div class="vto-loading-content">
+        <div class="vto-loading-spinner"></div>
+        <div class="vto-loading-text">${message}</div>
+      </div>
+    `;
+
+    // Add styles
+    loader.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10002;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+
+    // Add spinner styles
+    const style = document.createElement('style');
+    style.id = 'vto-loading-styles';
+    style.textContent = `
+      .vto-loading-content {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        max-width: 300px;
+      }
+      .vto-loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px auto;
+      }
+      .vto-loading-text {
+        font-size: 16px;
+        color: #333;
+        font-weight: 500;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+
+    document.head.appendChild(style);
+    document.body.appendChild(loader);
+  }
+
+  // Hide loading indicator
+  hideLoadingIndicator() {
+    const loader = document.getElementById('vto-loading-indicator');
+    const styles = document.getElementById('vto-loading-styles');
+
+    if (loader) {
+      loader.remove();
+    }
+    if (styles) {
+      styles.remove();
+    }
   }
 }
 
