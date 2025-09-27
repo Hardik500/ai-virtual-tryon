@@ -1,10 +1,13 @@
 # AI Virtual Try-On Chrome Extension - Installation Guide
 
-## ✅ Current Status: **FULLY WORKING**
+## ✅ Current Status: **ENHANCED WITH GEMINI 2.5 FLASH IMAGE**
 - Service worker errors resolved ✅
-- Gemini 2.5 API integration complete ✅
-- Virtual try-on generation functional ✅
-- Real-time clothing detection active ✅
+- Gemini 2.5 Flash Image integration complete ✅
+- Advanced virtual try-on generation functional ✅
+- Character consistency and multi-image fusion active ✅
+- Enhanced safety validation and watermarking ✅
+- Smart image processing optimizations ✅
+- Real-time clothing detection with advanced analysis ✅
 - Local storage and history working ✅
 
 ## Prerequisites
@@ -164,10 +167,13 @@ If you see "Cannot read properties of undefined (reading 'onClicked')":
 ### Expected Results
 - Extension icon appears in toolbar
 - Setup page opens on first install
-- API connection test passes
-- Photos upload successfully
-- Try-on processing completes without errors
-- Results are saved and viewable
+- API connection test passes with Gemini 2.5 Flash Image
+- Photos upload successfully with AI optimization
+- Try-on processing completes without errors using enhanced algorithms
+- Results include advanced fit analysis and styling recommendations
+- Safety validation passes for all content
+- AI-generated content includes proper watermarks
+- Results are saved and viewable with enhanced metadata
 
 ### Test Websites
 Try the extension on these popular shopping sites:
@@ -230,9 +236,36 @@ When reporting issues, please include:
 - Explain the use case
 - Suggest implementation approach if possible
 
+## Testing the Upgrade
+
+### Gemini 2.5 Flash Image Verification
+To verify your extension is using the latest Gemini 2.5 Flash Image model:
+
+1. Open any website with clothing items
+2. Open Chrome Developer Tools (F12)
+3. Go to the Console tab
+4. Paste and run the test script from `test-gemini-2.5-flash.js`
+5. Wait for the test results
+6. Look for "SUCCESS! Your extension has been upgraded to Gemini 2.5 Flash Image!"
+
+### New Features to Test
+- **Enhanced Character Consistency**: Try on items and notice preserved facial features
+- **Advanced Fit Analysis**: Check for detailed size and compatibility assessments
+- **Styling Intelligence**: Look for color harmony and style match recommendations
+- **Safety Validation**: Verify appropriate content filtering
+- **AI Watermarks**: Confirm AI-generated content is properly marked
+
 ## Version History
 
-### v1.0.0 (Current)
+### v2.5.0 (Current - Enhanced)
+- Gemini 2.5 Flash Image integration
+- Character consistency and multi-image fusion
+- Advanced fit and styling analysis
+- Enhanced safety validation and watermarking
+- Smart image processing optimizations
+- Improved error handling and diagnostics
+
+### v1.0.0 (Previous)
 - Initial release
 - Basic try-on functionality
 - Gemini AI integration

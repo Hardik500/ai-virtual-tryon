@@ -660,3 +660,211 @@ body {
   background: #545b62;
   transform: translateY(-1px);
 }
+
+/* Enhanced analysis styles for Gemini 2.5 Flash Image results */
+.enhanced-analysis {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #28a745;
+}
+
+.analysis-section {
+  margin-bottom: 12px;
+}
+
+.analysis-section:last-child {
+  margin-bottom: 0;
+}
+
+.analysis-section strong {
+  color: #495057;
+  font-size: 13px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.analysis-details {
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+/* Badge for enhanced AI features */
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-left: 8px;
+}
+
+.badge.advanced {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+/* Enhanced styling for processing methods */
+.result-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Safety indicator styles */
+.safety-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 6px;
+}
+
+.safety-indicator.safe {
+  background-color: #28a745;
+}
+
+.safety-indicator.warning {
+  background-color: #ffc107;
+}
+
+.safety-indicator.danger {
+  background-color: #dc3545;
+}
+
+/* Enhanced animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.enhanced-processing {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Watermark indicator for AI-generated content */
+.ai-watermark {
+  font-size: 10px;
+  color: #6c757d;
+  opacity: 0.7;
+  margin-top: 8px;
+  text-align: right;
+  font-style: italic;
+}
+
+/* Improved visual hierarchy for advanced features */
+.tryon-header .tryon-subtitle {
+  color: #495057;
+  margin-top: 4px;
+}
+
+/* AI-generated image styles */
+.tryon-result {
+  text-align: center;
+  margin: 16px 0;
+  position: relative;
+}
+
+.tryon-image {
+  position: relative;
+  display: inline-block;
+}
+
+.ai-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+.ai-watermark {
+  font-size: 10px;
+  color: #6c757d;
+  opacity: 0.7;
+  margin-top: 8px;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Generated image container */
+.tryon-image img {
+  border: 2px solid #e9ecef;
+  background: #f8f9fa;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tryon-image img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+}
+
+/* Refinement button special styling */
+.action-btn.refine {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn.refine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.action-btn.refine:hover::before {
+  left: 100%;
+}
+
+.action-btn.refine:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  transform: translateY(-1px);
+}
+
+/* Loading state for image generation */
+.generating-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.generating-image .spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e9ecef;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+.generating-image .status {
+  color: #495057;
+  font-size: 14px;
+  text-align: center;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

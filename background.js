@@ -33,6 +33,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleTryOnGeneration(request, sender, sendResponse);
       return true;
 
+    case 'refineImage':
+      handleImageRefinement(request, sender, sendResponse);
+      return true;
+
     default:
       console.log('Unknown action:', request.action);
   }
@@ -349,8 +353,8 @@ Provide accurate bounding boxes for each detected item and assess the suitabilit
     throw new Error('No valid image data provided');
   }
 
-  // Make API call to Gemini (using latest 2.5 model)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+  // Make API call to Gemini 2.5 Flash model (for detection only)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const requestBody = {
     contents: [{
@@ -365,17 +369,36 @@ Provide accurate bounding boxes for each detected item and assess the suitabilit
       ]
     }],
     generationConfig: {
-      temperature: 0.1,
+      temperature: 0.15,
       topK: 32,
-      topP: 1,
-      maxOutputTokens: 2048,
-    }
+      topP: 0.8,
+      maxOutputTokens: 4096,
+    },
+    safetySettings: [
+      {
+        category: "HARM_CATEGORY_HARASSMENT",
+        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+      },
+      {
+        category: "HARM_CATEGORY_HATE_SPEECH", 
+        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+      },
+      {
+        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+      },
+      {
+        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+      }
+    ]
   };
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'User-Agent': 'AI-Virtual-TryOn-Extension/2.5',
     },
     body: JSON.stringify(requestBody)
   });
@@ -525,6 +548,98 @@ async function handleTryOnGeneration(request, sender, sendResponse) {
       success: false,
       error: error.message,
       type: 'virtual_tryon_error'
+    });
+  }
+}
+
+// Handle image refinement requests
+async function handleImageRefinement(request, sender, sendResponse) {
+  try {
+    console.log('🔧 Handling image refinement request...', request);
+
+    const { tryOnId, refinementPrompt } = request;
+
+    if (!tryOnId || !refinementPrompt) {
+      throw new Error('Missing try-on ID or refinement prompt');
+    }
+
+    // Get the stored try-on result
+    const storedResults = await chrome.storage.local.get(['recentTryOns']);
+    const recentTryOns = storedResults.recentTryOns || [];
+    const targetResult = recentTryOns.find(result => result.id === tryOnId);
+
+    if (!targetResult) {
+      throw new Error('Try-on result not found');
+    }
+
+    // Get API key
+    const profileData = await chrome.storage.local.get(['userProfile']);
+    const apiKey = profileData.userProfile?.apiKey;
+
+    if (!apiKey) {
+      throw new Error('No API key configured');
+    }
+
+    // Initialize Gemini integration
+    const geminiIntegration = new GeminiIntegration();
+    geminiIntegration.setApiKey(apiKey);
+
+    // Refine the image
+    const originalImageData = targetResult.result?.tryOnData?.generatedImage;
+    if (!originalImageData) {
+      throw new Error('No generated image found to refine');
+    }
+
+    console.log('🎨 Refining image with prompt:', refinementPrompt);
+    
+    const refinementResult = await geminiIntegration.refineGeneratedImage(
+      originalImageData,
+      refinementPrompt,
+      { preserveCharacter: true }
+    );
+
+    if (refinementResult.success) {
+      // Update the stored result with the refined image
+      const updatedResult = {
+        ...targetResult,
+        result: {
+          ...targetResult.result,
+          tryOnData: {
+            ...targetResult.result.tryOnData,
+            generatedImage: refinementResult.refinedImage,
+            imageUrl: refinementResult.imageUrl,
+            refinements: [
+              ...(targetResult.result.tryOnData.refinements || []),
+              {
+                prompt: refinementPrompt,
+                timestamp: Date.now()
+              }
+            ]
+          }
+        }
+      };
+
+      // Update storage
+      const updatedTryOns = recentTryOns.map(item => 
+        item.id === tryOnId ? updatedResult : item
+      );
+      await chrome.storage.local.set({ recentTryOns: updatedTryOns });
+
+      console.log('✅ Image refinement successful');
+
+      sendResponse({
+        success: true,
+        result: updatedResult.result
+      });
+    } else {
+      throw new Error(refinementResult.error || 'Refinement failed');
+    }
+
+  } catch (error) {
+    console.error('❌ Image refinement failed:', error);
+    sendResponse({
+      success: false,
+      error: error.message
     });
   }
 }
