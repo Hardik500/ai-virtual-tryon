@@ -218,10 +218,37 @@ Provide accurate bounding boxes for each detected item and assess the suitabilit
     // For URL-based images, we need to fetch and convert to base64
     try {
       const response = await fetch(imageData.url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      imageBase64 = btoa(String.fromCharCode(...uint8Array));
+
+      // Check image size (limit to 10MB to avoid issues)
+      if (blob.size > 10 * 1024 * 1024) {
+        throw new Error(`Image too large (${Math.round(blob.size / 1024 / 1024)}MB). Maximum size is 10MB.`);
+      }
+
+      // Use FileReader for safe base64 conversion (avoids call stack issues)
+      imageBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const result = reader.result;
+            if (typeof result === 'string' && result.includes(',')) {
+              const base64 = result.split(',')[1]; // Remove data:image/...;base64, prefix
+              resolve(base64);
+            } else {
+              reject(new Error('Invalid FileReader result'));
+            }
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject(new Error('FileReader error'));
+        reader.readAsDataURL(blob);
+      });
+
       mimeType = blob.type || 'image/jpeg';
     } catch (error) {
       throw new Error(`Failed to fetch image: ${error.message}`);
@@ -233,8 +260,8 @@ Provide accurate bounding boxes for each detected item and assess the suitabilit
     throw new Error('No valid image data provided');
   }
 
-  // Make API call to Gemini
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Make API call to Gemini (using latest 2.5 model)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
   const requestBody = {
     contents: [{
