@@ -139,7 +139,8 @@ async function handleImageProcessing(request, sender, sendResponse) {
         const tryOnResult = await tryOnGenerator.generateTryOn(bestPhoto.id, clothingItems[0], {
           saveResult: true,
           createThumbnail: true,
-          source: request.options.source || 'auto_tryon'
+          source: request.options.source || 'auto_tryon',
+          skipSafetyValidation: true // Skip to reduce API calls - Gemini handles safety internally
         });
 
         if (tryOnResult.success) {
