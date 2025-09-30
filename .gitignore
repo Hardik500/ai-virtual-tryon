@@ -1,0 +1,69 @@
+# AI Virtual Try-On Extension - Git Ignore File
+
+# Node.js dependencies (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist/
+build/
+*.zip
+
+# Chrome extension development
+chrome-extension-*.crx
+*.pem
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# API keys and secrets (never commit these!)
+api-keys.json
+secrets.json
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Test artifacts
+test-results/
+coverage/
+
+# Development files
+*.dev.js
+*.debug.js
+*.test.local.js
+
+# User data (for development)
+user-photos-dev/
+test-images/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Chrome extension artifacts
+web-accessible-resources/temp/
