@@ -2,6 +2,7 @@
 
 // Import required modules for virtual try-on functionality (order matters)
 importScripts('lib/storage-manager.js');
+importScripts('lib/image-processor.js');
 importScripts('lib/gemini-integration.js');
 importScripts('lib/tryon-generator.js');
 
@@ -74,8 +75,19 @@ async function handleImageProcessing(request, sender, sendResponse) {
 
     // Check if we should proceed to virtual try-on
     const shouldTryOn = request.options?.autoTryOn !== false &&
-                       detectionResult.type === 'clothing_detection' &&
-                       detectionResult.aiData?.items?.length > 0;
+                       (detectionResult.type === 'clothing_detection' || 
+                        detectionResult.type === 'clothing_detected_ai' ||
+                        detectionResult.type?.includes('clothing_detected')) &&
+                       (detectionResult.aiData?.items?.length > 0 || 
+                        detectionResult.mockData?.items?.length > 0);
+
+    console.log('🔍 Try-on decision:', {
+      autoTryOn: request.options?.autoTryOn,
+      detectionType: detectionResult.type,
+      hasAIItems: detectionResult.aiData?.items?.length || 0,
+      hasMockItems: detectionResult.mockData?.items?.length || 0,
+      shouldTryOn: shouldTryOn
+    });
 
     if (shouldTryOn) {
       console.log('🎯 Proceeding to virtual try-on generation...');
@@ -84,7 +96,14 @@ async function handleImageProcessing(request, sender, sendResponse) {
         // Initialize try-on generator
         const tryOnGenerator = new TryOnGenerator();
 
+        // Ensure the database is initialized before proceeding
+        console.log('🔧 Initializing storage manager...');
+        if (tryOnGenerator.storageManager) {
+          await tryOnGenerator.storageManager.init();
+        }
+
         // Get best user photo
+        console.log('📸 Getting best user photo...');
         const bestPhoto = await tryOnGenerator.getBestUserPhoto();
         if (!bestPhoto) {
           console.log('⚠️ No user photos available - returning detection only');
@@ -99,7 +118,15 @@ async function handleImageProcessing(request, sender, sendResponse) {
         }
 
         // Convert detection results to clothing items for try-on
-        const clothingItems = detectionResult.aiData.items.map(item => ({
+        const detectedItems = detectionResult.aiData?.items || detectionResult.mockData?.items || [];
+        console.log('🔍 Converting detected items for try-on:', {
+          hasAIData: !!detectionResult.aiData,
+          hasMockData: !!detectionResult.mockData,
+          itemsCount: detectedItems.length,
+          detectionType: detectionResult.type
+        });
+        
+        const clothingItems = detectedItems.map(item => ({
           category: item.category || 'clothing',
           description: item.description || item.name,
           confidence: item.confidence,
